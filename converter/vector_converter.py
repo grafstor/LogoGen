@@ -4,9 +4,11 @@ from .dots_types import DotTypes
 
 
 class DotsVectorConverter:
-    def __init__(self, vector_len=10):
+    def __init__(self, vector_len=10, scale=25):
 
         self.vector_len = vector_len
+
+        self.scale = scale
 
         self.dots_types = DotTypes()
 
@@ -22,7 +24,8 @@ class DotsVectorConverter:
             vector.append(dot_vector)
 
         if is_one_len:
-            self.fill_vector_nulls(vector)        
+            self.fill_vector_nulls(vector)
+            vector = vector[:self.vector_len]     
 
         return vector
 
@@ -45,6 +48,7 @@ class DotsVectorConverter:
             dots_dicts.append(dot_dict)
 
         dots_dicts = self.normalize_coords(dots_dicts, min_x_coord, min_y_coord)
+        dots_dicts = self.scale_coords(dots_dicts, self.scale)
 
         #dots_dicts = self.remove_moves(dots_dicts)
 
@@ -62,6 +66,20 @@ class DotsVectorConverter:
             max_y_coord = max(dot_dict['e'][1], max_y_coord)
 
         return max_x_coord, max_y_coord
+
+    def scale_coords(self, dots_dicts, scale):
+        for dot_dict in dots_dicts:
+            dot_dict['s'] = [dot_dict['s'][0]*scale, dot_dict['s'][1]*scale]
+            dot_dict['e'] = [dot_dict['e'][0]*scale, dot_dict['e'][1]*scale]
+
+            if dot_dict['type'] == 0:
+                dot_dict['cs'][0] = [dot_dict['cs'][0][0]*scale, dot_dict['cs'][0][1]*scale]
+                dot_dict['cs'][1] = [dot_dict['cs'][1][0]*scale, dot_dict['cs'][1][1]*scale]
+
+            elif dot_dict['type'] == 1:
+                dot_dict['cs'] = [dot_dict['cs'][0]*scale, dot_dict['cs'][1]*scale]
+
+        return dots_dicts
 
     def normalize_coords(self, dots_dicts, min_x_coord, min_y_coord):
         min_x_coord += 1
@@ -115,14 +133,14 @@ class DotsVectorConverter:
 
         next_root_coord = dot_dict['s']
 
-        dot_vector += self.subtract_coords(next_root_coord, dot_dict['e'])
+        dot_vector += self.subtract_coords(next_root_coord, dot_dict['e']) # 1, 2
 
         for control in dot_dict['cs']:
-            dot_vector += self.subtract_coords(next_root_coord, control)
+            dot_vector += self.subtract_coords(next_root_coord, control) # 3, 4  / 3, 4, 5, 6
 
-        dot_vector += self.get_nulls(dot_vector, min_len=6)
+        dot_vector += self.get_nulls(dot_vector, min_len=6) # 5,6 / 7, 8
 
-        dot_vector += self.type_to_onehot(dot_dict['type'])
+        dot_vector += self.type_to_onehot(dot_dict['type']) # 
 
         dot_vector += [-1]
 
