@@ -4,7 +4,7 @@ from .dots_types import DotTypes
 
 
 class DotsVectorConverter:
-    def __init__(self, vector_len=10, scale=25):
+    def __init__(self, vector_len=10, scale=50):
 
         self.vector_len = vector_len
 
@@ -82,8 +82,15 @@ class DotsVectorConverter:
         return dots_dicts
 
     def normalize_coords(self, dots_dicts, min_x_coord, min_y_coord):
-        min_x_coord += 1
-        min_y_coord += 1
+        # min_x_coord += 1
+        # min_y_coord += 1
+
+        # if min_x_coord < 0:
+        #     min_x_coord = -min_x_coord
+
+        # if min_y_coord < 0:
+        #     min_y_coord = -min_y_coord
+        
 
         for dot_dict in dots_dicts:
             dot_dict['s'] = [dot_dict['s'][0]-min_x_coord, dot_dict['s'][1]-min_y_coord]
