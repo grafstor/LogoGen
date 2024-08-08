@@ -17,11 +17,45 @@ class DotsDictsConverter:
         self.width = None
         self.height = None
 
+    def get_width(self, dots):
+        min_coord = float('inf')
+        max_coord = float('-inf')
+
+        for dot in dots:
+            x, y = self.get_int_coord(dot.start)
+            min_coord = min(min_coord, x)
+            max_coord = max(max_coord, x)
+
+            x, y = self.get_int_coord(dot.end)
+            min_coord = min(min_coord, x)
+            max_coord = max(max_coord, x)
+
+        self.x_bias = min_coord
+
+        return max_coord - min_coord
+
+    def get_height(self, dots):
+        min_coord = float('inf')
+        max_coord = float('-inf')
+
+        for dot in dots:
+            x, y = self.get_int_coord(dot.start)
+            min_coord = min(min_coord, y)
+            max_coord = max(max_coord, y)
+
+            x, y = self.get_int_coord(dot.end)
+            min_coord = min(min_coord, y)
+            max_coord = max(max_coord, y)
+
+        self.y_bias = min_coord
+
+        return max_coord - min_coord
+
     def convert(self, dots, width, height):
         dots_dicts = []
 
-        self.width = width
-        self.height = height
+        self.width = self.get_width(dots)
+        self.height = self.get_height(dots)
 
         for i, dot in enumerate(dots):
             if self.has_dot_rep(dot):
@@ -70,6 +104,9 @@ class DotsDictsConverter:
         x, y = self.get_int_coord(coord)
 
         maxwh = max(self.width, self.height)
+
+        x -= self.x_bias
+        y -= self.y_bias
         
         x /= maxwh
         y /= maxwh
@@ -89,7 +126,7 @@ class DotsDictsConverter:
         return dots
 
     def plus_one(self, coord):
-        return [coord[0]+1, coord[1]+1]
+        return [coord[0], coord[1]]
     
     def to_dots_reps(self, dots_dicts):
         dots_reps = []

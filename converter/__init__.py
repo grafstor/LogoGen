@@ -21,10 +21,10 @@ class Converter:
 
         vector = self.dots_vector_converter.convert(dots_dicts, is_one_len)
         
-        return vector
+        return dots_dicts, vector
 
-    def to_svg(self, vector):
-        dots_dicts = self.dots_vector_converter.reconvert(vector)
+    def to_svg(self, vector, scale=100):
+        dots_dicts = self.dots_vector_converter.reconvert(vector, scale)
 
         dots = self.dots_dicts_converter.reconvert(dots_dicts)
 
@@ -62,6 +62,21 @@ class Converter:
         }
 
         return svg
+
+    def get_string(self, path, svg):
+        dwg = svgwrite.Drawing(
+            path,
+            profile='tiny',
+            fill_rule="evenodd", 
+            size=(f"{svg['width']}px", f"{svg['height']}px")
+        )
+        
+        dwg.add(
+            dwg.path( d=svg['d'].d(),
+            fill="#000")
+        )
+
+        return dwg.tostring()
 
     def save(self, path, svg):
         dwg = svgwrite.Drawing(

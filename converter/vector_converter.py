@@ -1,10 +1,13 @@
 
+import math
+import copy
+
 import numpy as np
 from .dots_types import DotTypes
 
 
 class DotsVectorConverter:
-    def __init__(self, vector_len=10, scale=50):
+    def __init__(self, vector_len=10, scale=100):
 
         self.vector_len = vector_len
 
@@ -17,9 +20,11 @@ class DotsVectorConverter:
         vector = []
 
         dots_dicts = self.fill_moves(dots_dicts)
+        past_angle = None
 
         for i, dot_dict in enumerate(dots_dicts):
-            dot_vector = self.dot_dict_to_dot_vector(dot_dict)
+            # dot_vector = self.dot_dict_to_dot_vector(dot_dict)
+            dot_vector, past_angle = self.dot_dict_to_dot_vector(dot_dict, past_angle)
 
             vector.append(dot_vector)
 
@@ -29,7 +34,8 @@ class DotsVectorConverter:
 
         return vector
 
-    def reconvert(self, vector):
+    def reconvert(self, vector, scale):
+        self.scale = scale
         dots_dicts = []
 
         vector = self.remove_nulls_vectors(vector)
@@ -39,8 +45,11 @@ class DotsVectorConverter:
         min_x_coord = float("inf")
         min_y_coord = float("inf")
 
+        angle = 0 
+
         for dot_vector in vector:
-            dot_dict, next_root_coord = self.dot_vector_to_dot_dict(dot_vector, next_root_coord)
+            # dot_dict, next_root_coord = self.dot_vector_to_dot_dict(dot_vector, next_root_coord)
+            dot_dict, next_root_coord, angle = self.dot_vector_to_dot_dict(dot_vector, next_root_coord, angle)
 
             min_x_coord = min(next_root_coord[0], min_x_coord)
             min_y_coord = min(next_root_coord[1], min_y_coord)
@@ -81,17 +90,7 @@ class DotsVectorConverter:
 
         return dots_dicts
 
-    def normalize_coords(self, dots_dicts, min_x_coord, min_y_coord):
-        # min_x_coord += 1
-        # min_y_coord += 1
-
-        # if min_x_coord < 0:
-        #     min_x_coord = -min_x_coord
-
-        # if min_y_coord < 0:
-        #     min_y_coord = -min_y_coord
-        
-
+    def normalize_coords(self, dots_dicts, min_x_coord, min_y_coord):        
         for dot_dict in dots_dicts:
             dot_dict['s'] = [dot_dict['s'][0]-min_x_coord, dot_dict['s'][1]-min_y_coord]
             dot_dict['e'] = [dot_dict['e'][0]-min_x_coord, dot_dict['e'][1]-min_y_coord]
@@ -135,29 +134,158 @@ class DotsVectorConverter:
 
         return new_dots_dicts
 
-    def dot_dict_to_dot_vector(self, dot_dict):
+    # def dot_dict_to_dot_vector(self, dot_dict):
+    #     dot_vector = []
+
+    #     next_root_coord = dot_dict['s']
+
+    #     dot_vector += self.subtract_coords(next_root_coord, dot_dict['e']) # 1, 2
+
+    #     for control in dot_dict['cs']:
+    #         dot_vector += self.subtract_coords(next_root_coord, control) # 3, 4  / 3, 4, 5, 6
+
+    #     dot_vector += self.get_nulls(dot_vector, min_len=6) # 5,6 
+
+    #     dot_vector += self.type_to_onehot(dot_dict['type']) # 
+
+    #     dot_vector += [-1]
+
+    #     return dot_vector
+
+    # def dot_vector_to_dot_dict(self, dot_vector, next_root_coord):
+    #     dot_dict = {}
+
+    #     dot_dict['s'] = next_root_coord
+    #     new_next_root_coord = self.add_up_coords(next_root_coord, dot_vector[:2])
+    #     dot_dict['e'] = new_next_root_coord 
+
+    #     dot_dict['cs'] = []
+        
+    #     dot_dict['type'] = np.argmax(np.array(dot_vector[6:10]))
+
+    #     if dot_dict['type'] == 0:
+    #         dot_dict['cs'].append(self.add_up_coords(next_root_coord, dot_vector[2:4]))            
+    #         dot_dict['cs'].append(self.add_up_coords(next_root_coord, dot_vector[4:6]))
+
+    #     elif dot_dict['type'] == 1:
+    #         dot_dict['cs'].append(self.add_up_coords(next_root_coord, dot_vector[2:4]))
+
+
+    #     return dot_dict, new_next_root_coord
+
+
+    # def dot_dict_to_dot_vector(self, dot_dict):
+    #     dot_vector = []
+
+    #     dot_vector += dot_dict['e']
+
+    #     # dot_vector += self.subtract_coords(next_root_coord, dot_dict['e']) # 1, 2
+
+    #     for control in dot_dict['cs']:
+    #         dot_vector += control # 3, 4  / 3, 4, 5, 6
+
+    #     dot_vector += self.get_nulls(dot_vector, min_len=6) # 5,6 / 7, 8
+
+    #     dot_vector += self.type_to_onehot(dot_dict['type']) # 
+
+    #     dot_vector += [-1]
+
+    #     return dot_vector
+
+    # def dot_vector_to_dot_dict(self, dot_vector, next_root_coord):
+    #     dot_dict = {}
+
+    #     dot_dict['s'] = next_root_coord
+    #     new_next_root_coord = dot_vector[:2]
+    #     dot_dict['e'] = new_next_root_coord
+
+    #     dot_dict['cs'] = []
+        
+    #     dot_dict['type'] = np.argmax(np.array(dot_vector[6:10]))
+
+    #     if dot_dict['type'] == 0:
+    #         dot_dict['cs'].append(dot_vector[2:4])            
+    #         dot_dict['cs'].append(dot_vector[4:6])
+
+    #     elif dot_dict['type'] == 1:
+    #         dot_dict['cs'].append(dot_vector[2:4])
+
+
+    #     return dot_dict, new_next_root_coord
+
+    def get_distance(self, c1, c2):
+        return ((c1[0] - c2[0])**2 + (c1[1] - c2[1])**2)**0.5
+
+    def get_angle(self, coord1, coord2):
+        # Вычисляем угол в радианах
+        delta_y = coord2[1] - coord1[1]
+        delta_x = coord2[0] - coord1[0]
+        angle_rad = math.atan2(delta_y, delta_x)
+        
+        # Нормализуем угол в диапазоне [0, 2π]
+        if angle_rad < 0:
+            angle_rad += 2 * math.pi
+        
+        # Нормализуем угол от 0 до 1
+        normalized_angle = angle_rad / (2 * math.pi)
+        
+        return normalized_angle
+
+    def normalized_angle_length_to_vector(self, normalized_angle, length):
+        """
+        Преобразует нормализованный угол и длину в координаты вектора (x, y).
+
+        Args:
+        normalized_angle: Нормализованный угол в радианах (от 0 до 1).
+        length: Длина вектора.
+
+        Returns:
+        Координаты вектора (x, y).
+        """
+        angle_radians = normalized_angle * 2 * math.pi
+        x = length * math.cos(angle_radians)
+        y = length * math.sin(angle_radians)
+        return [x, y]
+
+    def dot_dict_to_dot_vector(self, dot_dict, past_angle):
         dot_vector = []
 
         next_root_coord = dot_dict['s']
 
-        dot_vector += self.subtract_coords(next_root_coord, dot_dict['e']) # 1, 2
+        dot_vector += [self.get_distance(next_root_coord, dot_dict['e'])]
+
+        current_angle = self.get_angle(next_root_coord, dot_dict['e'])
+        # print(current_angle)
+        if past_angle == None:
+            d_angle = current_angle
+        else:
+            d_angle = current_angle - past_angle 
+            
+        past_angle = copy.copy(current_angle)
+
+        dot_vector += [d_angle]
+        # dot_vector += self.subtract_coords(next_root_coord, dot_dict['e']) # 1, 2
 
         for control in dot_dict['cs']:
             dot_vector += self.subtract_coords(next_root_coord, control) # 3, 4  / 3, 4, 5, 6
 
-        dot_vector += self.get_nulls(dot_vector, min_len=6) # 5,6 / 7, 8
+        dot_vector += self.get_nulls(dot_vector, min_len=6) # 5,6 
 
         dot_vector += self.type_to_onehot(dot_dict['type']) # 
 
-        dot_vector += [-1]
+        dot_vector += [0]
 
-        return dot_vector
+        return dot_vector, past_angle
 
-    def dot_vector_to_dot_dict(self, dot_vector, next_root_coord):
+    def dot_vector_to_dot_dict(self, dot_vector, next_root_coord, angle):
         dot_dict = {}
 
         dot_dict['s'] = next_root_coord
-        new_next_root_coord = self.add_up_coords(next_root_coord, dot_vector[:2])
+        vec_len = dot_vector[0]
+        d_angle = dot_vector[1]
+        angle += d_angle
+
+        new_next_root_coord = self.add_up_coords(next_root_coord, self.normalized_angle_length_to_vector(angle, vec_len))
         dot_dict['e'] = new_next_root_coord 
 
         dot_dict['cs'] = []
@@ -172,8 +300,8 @@ class DotsVectorConverter:
             dot_dict['cs'].append(self.add_up_coords(next_root_coord, dot_vector[2:4]))
 
 
-        return dot_dict, new_next_root_coord
-
+        return dot_dict, new_next_root_coord, angle
+        
     def type_to_onehot(self, dot_type):
         onehot = [0]*4
         onehot[dot_type] = 1
@@ -190,7 +318,7 @@ class DotsVectorConverter:
     def remove_nulls_vectors(self, vector):
         new_vector = []
         for i in vector:
-            if i[-1] > 0:
+            if i[-1] > 0.5:
                 return new_vector
             new_vector.append(i)
         return new_vector
